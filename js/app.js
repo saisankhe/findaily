@@ -28,9 +28,121 @@
   }
 
   function askBtn(card, isNews) {
-    const a = el("a", "btn solid", "Ask Claude");
-    a.href = AskClaude.url(card, isNews);
-    return a;
+    const b = el("button", "btn solid", "Ask Claude");
+    b.onclick = () => openChat(card, isNews);
+    return b;
+  }
+
+  // ---------- embedded chat (key lives in localStorage only — see ask-claude.js) ----------
+  let chat = null;
+  function openChat(card, isNews) {
+    closeChat();
+    const ov = el("div", "chat-ov");
+    const panel = el("div", "chat-panel");
+    ov.appendChild(panel);
+    document.body.appendChild(ov);
+    chat = { card, isNews, messages: [], ov, panel, busy: false };
+    AskClaude.getKey() ? renderChatView() : renderKeySetup();
+  }
+  function closeChat() { if (chat) { chat.ov.remove(); chat = null; } }
+
+  function chatHeader(title) {
+    const h = el("div", "chat-head");
+    h.appendChild(el("h3", null, title));
+    const key = el("button", "mini", "key");
+    key.onclick = () => { if (confirm("Replace the stored API key?")) { AskClaude.clearKey(); renderKeySetup(); } };
+    const x = el("button", "chat-x", "✕");
+    x.onclick = closeChat;
+    h.append(key, x);
+    return h;
+  }
+
+  function renderKeySetup() {
+    const p = chat.panel; p.innerHTML = "";
+    p.appendChild(chatHeader("Set up Ask Claude (one time)"));
+    p.appendChild(el("p", "key-copy",
+      "Chat runs on your own Anthropic API key, stored only on this device — never in the app's code."));
+    p.appendChild(el("ol", "key-steps",
+      "<li>Go to <b>console.anthropic.com</b> and sign in</li>" +
+      "<li>Billing → buy <b>$5</b> of credits, and set a <b>$5 monthly spend limit</b></li>" +
+      "<li>API Keys → Create Key → copy it</li>" +
+      "<li>Paste it below</li>"));
+    p.appendChild(el("p", "key-note",
+      "Cost reality: about $0.002 per question — a few cents a month. The $5 cap is the ceiling."));
+    const row = el("div", "chat-row");
+    const inp = el("input", "chat-in");
+    inp.type = "password"; inp.placeholder = "sk-ant-…";
+    const save = el("button", "chat-send", "Save");
+    save.onclick = () => {
+      const v = inp.value.trim();
+      if (!v) return;
+      if (!v.startsWith("sk-ant-") && !confirm("That doesn't look like an Anthropic key (sk-ant-…). Save anyway?")) return;
+      AskClaude.setKey(v);
+      renderChatView();
+    };
+    row.append(inp, save);
+    p.appendChild(row);
+    const alt = el("a", "mini", "or open this question on claude.ai in the browser instead");
+    alt.href = AskClaude.webUrl(chat.card, chat.isNews);
+    alt.style.cssText = "display:block;text-align:center;margin-top:10px;color:var(--blue);font-size:12px;";
+    p.appendChild(alt);
+  }
+
+  function renderChatView() {
+    const p = chat.panel; p.innerHTML = "";
+    p.appendChild(chatHeader("Ask Claude"));
+    const ctx = AskClaude.contextFor(chat.card, chat.isNews);
+    p.appendChild(el("div", "chat-ctx", esc(ctx.length > 110 ? ctx.slice(0, 110) + "…" : ctx)));
+    const msgs = el("div", "chat-msgs");
+    p.appendChild(msgs);
+    if (!chat.messages.length) {
+      const sugg = el("button", "chip-sugg", "Explain this more simply");
+      sugg.onclick = () => sendMsg("Explain this more simply.");
+      msgs.appendChild(sugg);
+    }
+    const row = el("div", "chat-row");
+    const inp = el("input", "chat-in");
+    inp.placeholder = "Ask anything about this…";
+    inp.onkeydown = e => { if (e.key === "Enter") sendMsg(inp.value), inp.value = ""; };
+    const send = el("button", "chat-send", "Send");
+    send.onclick = () => { sendMsg(inp.value); inp.value = ""; };
+    row.append(inp, send);
+    p.appendChild(row);
+    chat.ui = { msgs, inp, send };
+    inp.focus();
+  }
+
+  function addBubble(cls, text) {
+    const m = el("div", "msg " + cls);
+    m.textContent = text;
+    const sugg = chat.ui.msgs.querySelector(".chip-sugg");
+    if (sugg) sugg.remove();
+    chat.ui.msgs.appendChild(m);
+    chat.ui.msgs.scrollTop = chat.ui.msgs.scrollHeight;
+    return m;
+  }
+
+  async function sendMsg(text) {
+    if (!chat || !text.trim() || chat.busy) return;
+    const first = chat.messages.length === 0;
+    chat.messages.push({ role: "user",
+      content: first ? AskClaude.contextFor(chat.card, chat.isNews) + "\n\nMy question: " + text : text });
+    addBubble("user", text.trim());
+    const pend = addBubble("ai pending", "…");
+    chat.busy = true; chat.ui.send.disabled = true;
+    try {
+      const reply = await AskClaude.send(chat.messages);
+      chat.messages.push({ role: "assistant", content: reply });
+      pend.textContent = reply;
+      pend.classList.remove("pending");
+    } catch (err) {
+      chat.messages.pop(); // let the same question be retried
+      pend.textContent = (err && err.msg) || "Something went wrong.";
+      pend.classList.remove("pending"); pend.classList.add("err");
+      if (err && err.kind === "auth") { AskClaude.clearKey(); setTimeout(() => chat && renderKeySetup(), 1500); }
+    }
+    chat.busy = false;
+    if (chat && chat.ui) { chat.ui.send.disabled = false; chat.ui.msgs.scrollTop = chat.ui.msgs.scrollHeight; }
   }
 
   // ---------- screens ----------

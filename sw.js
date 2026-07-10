@@ -1,6 +1,6 @@
-// FinDaily service worker — cache-first shell (terms work in airplane mode),
-// network-first news (freshness matters, cached copy as fallback).
-const CACHE = "findaily-v1";
+// FinDaily service worker v2 — cache-first shell (terms work in airplane mode),
+// network-first news, and NO interception of API calls (chat goes straight out).
+const CACHE = "findaily-v2";
 const SHELL = [
   "./", "./index.html", "./manifest.json",
   "./data/curriculum.js", "./data/news-fallback.js",
@@ -18,8 +18,9 @@ self.addEventListener("activate", e => {
 });
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
+  // Only same-origin GETs are ours; API calls (api.anthropic.com, POST) pass untouched.
+  if (e.request.method !== "GET" || url.origin !== location.origin) return;
   if (url.pathname.endsWith("news-latest.json")) {
-    // network-first: fresh news when online, last cached copy when not
     e.respondWith(
       fetch(e.request).then(r => {
         const copy = r.clone();
@@ -28,7 +29,6 @@ self.addEventListener("fetch", e => {
       }).catch(() => caches.match(e.request))
     );
   } else {
-    // cache-first: instant, offline-safe shell
     e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request)));
   }
 });

@@ -29,7 +29,8 @@
 
   function askBtn(card, isNews) {
     const b = el("button", "btn solid", "Ask Claude");
-    b.onclick = () => openChat(card, isNews);
+    // Default: open Claude itself ($0, no setup). In-app chat only if a key was added.
+    b.onclick = () => AskClaude.getKey() ? openChat(card, isNews) : AskClaude.openDirect(card, isNews);
     return b;
   }
 
@@ -286,6 +287,13 @@
       "<h3>Done for today 🔥 " + streak + "</h3><p>" +
       (reviewed ? reviewed + " reviews cleared. " : "") +
       s.learning + " terms in rotation · " + s.done + " known · see you tomorrow with coffee.</p>"));
+    // dormant option: in-app chat (answers inline on cards) if Sai ever adds an API key
+    if (!AskClaude.getKey()) {
+      const opt = el("button", "mini", "optional: set up in-app chat (answers right on the card)");
+      opt.style.cssText = "display:block;margin:2px auto 0;background:none;border:none;color:var(--muted);font-size:11.5px;text-decoration:underline;font-family:inherit;cursor:pointer;";
+      opt.onclick = () => { const c = CARDS[0]; openChat(c, false); };
+      box.appendChild(opt);
+    }
     refreshHeader();
     show(box);
   }

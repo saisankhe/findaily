@@ -1,6 +1,6 @@
 // FinDaily service worker v2 — cache-first shell (terms work in airplane mode),
 // network-first news, and NO interception of API calls (chat goes straight out).
-const CACHE = "findaily-v2";
+const CACHE = "findaily-v3";
 const SHELL = [
   "./", "./index.html", "./manifest.json",
   "./data/curriculum.js", "./data/news-fallback.js",

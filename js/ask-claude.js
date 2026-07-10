@@ -64,7 +64,15 @@ const AskClaude = (() => {
     return "https://claude.ai/new?q=" + encodeURIComponent(q.slice(0, 600));
   }
 
-  return { getKey, setKey, clearKey, contextFor, send, webUrl, MODEL };
+  // DEFAULT path (Sai's call, Jul 10 2026): no key stored → just open Claude.
+  // iPhone: claude://new opens the Claude app (blank chat — iOS drops text params,
+  // proven by the spike). Laptop: claude.ai tab WITH the question prefilled (works).
+  function openDirect(card, isNews) {
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) location.href = "claude://new";
+    else window.open(webUrl(card, isNews), "_blank");
+  }
+
+  return { getKey, setKey, clearKey, contextFor, send, webUrl, openDirect, MODEL };
 })();
 if (typeof window !== "undefined") window.AskClaude = AskClaude;
 if (typeof module !== "undefined") module.exports = AskClaude; // for tests only

@@ -1,0 +1,14 @@
+{
+  "name": "FinDaily",
+  "short_name": "FinDaily",
+  "description": "Daily 15-minute business & finance fluency. 2 terms, 3 stories, Claude one tap away.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#f6f8fb",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
